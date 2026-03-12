@@ -1,7 +1,7 @@
 import { useAuth } from '../contexts/AuthContext';
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { getInstructorLanguages, getChapters, getTestQuestions } from '../api/auth';
+import { getInstructorLanguages, getChapters, getTestQuestions, getLearnerDashboard } from '../api/auth';
 
 export default function DashboardPage() {
   const { user } = useAuth();
@@ -34,7 +34,6 @@ export default function DashboardPage() {
         )}
 
         {/* Stats Cards */}
-        {user?.role === 'learner' && <LearnerStats />}
         {user?.role === 'admin' && <AdminStats />}
 
         {/* Quick Actions */}
@@ -69,9 +68,38 @@ export default function DashboardPage() {
 // ─── Learner Components ────────────────────────────────
 
 function LearnerDashboard({ user }) {
-  const weekDays = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
-  const weekActivity = [45, 30, 60, 20, 50, 0, 0];
-  const maxActivity = Math.max(...weekActivity, 1);
+  const [analytics, setAnalytics] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    let mounted = true;
+
+    const load = () => {
+      setLoading(true);
+      getLearnerDashboard()
+        .then(({ data }) => {
+          if (!mounted) return;
+          setAnalytics(data);
+        })
+        .catch(() => {
+          if (!mounted) return;
+          setAnalytics(null);
+        })
+        .finally(() => {
+          if (!mounted) return;
+          setLoading(false);
+        });
+    };
+
+    load();
+    const onLanguageChanged = () => load();
+    window.addEventListener('languageChanged', onLanguageChanged);
+
+    return () => {
+      mounted = false;
+      window.removeEventListener('languageChanged', onLanguageChanged);
+    };
+  }, []);
 
   const greeting = () => {
     const hour = new Date().getHours();
@@ -80,11 +108,34 @@ function LearnerDashboard({ user }) {
     return 'Good evening';
   };
 
+  const stats = analytics?.stats || {
+    languages_enrolled: 0,
+    courses_in_progress: 0,
+    completed_chapters: 0,
+    overall_progress: 0,
+    day_streak: 0,
+    xp_points: 0,
+  };
+
+  const weeklyActivity = analytics?.weekly_activity || [];
+  const maxActivity = Math.max(...weeklyActivity.map((item) => item.count), 1);
+
+  if (loading) {
+    return (
+      <div className="space-y-6">
+        <div className="h-44 bg-gray-100 rounded-2xl animate-pulse" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-32 bg-gray-100 rounded-2xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
-      {/* Hero Banner — Gradient with decorative shapes */}
       <div className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-purple-600 to-indigo-700 rounded-2xl p-7 sm:p-8 text-white shadow-xl shadow-violet-500/15">
-        {/* Decorative shapes */}
         <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
         <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-white/5 rounded-full translate-y-1/2" />
         <div className="absolute top-1/2 right-1/4 w-20 h-20 bg-white/5 rounded-full" />
@@ -94,10 +145,10 @@ function LearnerDashboard({ user }) {
             <div className="flex-1">
               <p className="text-violet-200 text-sm font-medium mb-1">{greeting()}</p>
               <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
-                {user?.name?.split(' ')[0]}, ready to learn? <span className="inline-block animate-bounce">🎯</span>
+                {user?.name?.split(' ')[0]}, ready to learn?
               </h1>
               <p className="text-violet-100/80 text-sm max-w-md leading-relaxed">
-                Continue your learning adventure! Pick up where you left off or start something new today.
+                Continue your learning adventure with your real progress and activity.
               </p>
               <div className="flex items-center gap-3 mt-5">
                 <Link to="/learner/languages" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-violet-700 font-semibold text-sm rounded-xl hover:bg-violet-50 transition-all duration-200 shadow-lg shadow-violet-900/20">
@@ -110,16 +161,15 @@ function LearnerDashboard({ user }) {
               </div>
             </div>
 
-            {/* Streak & XP cards */}
             <div className="hidden lg:flex items-center gap-3">
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 text-center border border-white/10 min-w-[90px] hover:bg-white/15 transition-colors duration-200">
-                <span className="text-2xl block mb-1">🔥</span>
-                <div className="text-2xl font-bold">0</div>
+                <svg className="w-5 h-5 mx-auto mb-1 text-orange-300" fill="currentColor" viewBox="0 0 24 24"><path d="M12 23a7.5 7.5 0 01-5.138-12.963C8.204 8.774 11.5 6.5 11 1.5c6 4 9 8 3 14 1 0 2.5 0 5-2.47A7.5 7.5 0 0112 23z" /></svg>
+                <div className="text-2xl font-bold">{stats.day_streak}</div>
                 <div className="text-[11px] text-violet-200 mt-0.5 font-medium">Day Streak</div>
               </div>
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-5 text-center border border-white/10 min-w-[90px] hover:bg-white/15 transition-colors duration-200">
-                <span className="text-2xl block mb-1">⭐</span>
-                <div className="text-2xl font-bold">0</div>
+                <svg className="w-5 h-5 mx-auto mb-1 text-yellow-300" fill="currentColor" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
+                <div className="text-2xl font-bold">{stats.xp_points}</div>
                 <div className="text-[11px] text-violet-200 mt-0.5 font-medium">XP Points</div>
               </div>
             </div>
@@ -127,17 +177,16 @@ function LearnerDashboard({ user }) {
         </div>
       </div>
 
-      {/* Stats Row */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Languages', value: '0', sub: 'enrolled', icon: '🌍', gradient: 'from-violet-500 to-purple-500', light: 'from-violet-50 to-purple-50', text: 'text-violet-700' },
-          { label: 'Courses', value: '0', sub: 'in progress', icon: '📚', gradient: 'from-emerald-500 to-teal-500', light: 'from-emerald-50 to-teal-50', text: 'text-emerald-700' },
-          { label: 'Exercises', value: '0', sub: 'completed', icon: '✏️', gradient: 'from-amber-500 to-orange-500', light: 'from-amber-50 to-orange-50', text: 'text-amber-700' },
-          { label: 'Progress', value: '0%', sub: 'overall', icon: '📈', gradient: 'from-rose-500 to-pink-500', light: 'from-rose-50 to-pink-50', text: 'text-rose-700' },
+          { label: 'Languages', value: `${stats.languages_enrolled}`, sub: 'enrolled', icon: (<svg className="w-5 h-5 text-violet-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>), gradient: 'from-violet-500 to-purple-500', light: 'from-violet-50 to-purple-50', text: 'text-violet-700' },
+          { label: 'Courses', value: `${stats.courses_in_progress}`, sub: 'in progress', icon: (<svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>), gradient: 'from-emerald-500 to-teal-500', light: 'from-emerald-50 to-teal-50', text: 'text-emerald-700' },
+          { label: 'Chapters', value: `${stats.completed_chapters}`, sub: 'completed', icon: (<svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" /></svg>), gradient: 'from-amber-500 to-orange-500', light: 'from-amber-50 to-orange-50', text: 'text-amber-700' },
+          { label: 'Progress', value: `${stats.overall_progress}%`, sub: 'overall', icon: (<svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>), gradient: 'from-rose-500 to-pink-500', light: 'from-rose-50 to-pink-50', text: 'text-rose-700' },
         ].map((stat) => (
           <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-default">
             <div className="flex items-center justify-between mb-3">
-              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.light} flex items-center justify-center text-xl transition-transform duration-300 group-hover:scale-110`}>
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.light} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
                 {stat.icon}
               </div>
               <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.sub}</span>
@@ -148,13 +197,49 @@ function LearnerDashboard({ user }) {
         ))}
       </div>
 
+      {/* Continue Learning Card */}
+      {analytics?.continue_learning && (() => {
+        const cl = analytics.continue_learning;
+        const progressPct = cl.total > 0 ? Math.round((cl.completed / cl.total) * 100) : 0;
+        return (
+          <Link to="/learner/courses" className="group block bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 rounded-2xl p-5 sm:p-6 text-white shadow-lg shadow-violet-500/20 hover:shadow-xl hover:shadow-violet-500/30 transition-all duration-300 relative overflow-hidden">
+            <div className="absolute top-0 right-0 w-48 h-48 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+            <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4" />
+            <div className="relative z-10 flex items-center gap-5">
+              <div className="shrink-0 w-14 h-14 bg-white/15 backdrop-blur-sm rounded-2xl flex items-center justify-center border border-white/10 group-hover:scale-110 transition-transform duration-300">
+                <svg className="w-7 h-7 text-white" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M5.25 5.653c0-.856.917-1.398 1.667-.986l11.54 6.348a1.125 1.125 0 010 1.971l-11.54 6.347a1.125 1.125 0 01-1.667-.985V5.653z" />
+                </svg>
+              </div>
+              <div className="flex-1 min-w-0">
+                <p className="text-violet-200 text-xs font-semibold uppercase tracking-wider mb-0.5">Continue Learning</p>
+                <h3 className="text-lg font-bold truncate">{cl.chapter_title}</h3>
+                <p className="text-violet-200/80 text-sm mt-0.5">
+                  {cl.language_name} · {cl.level_name} · Chapter {cl.chapter_order}
+                </p>
+                <div className="mt-3 flex items-center gap-3">
+                  <div className="flex-1 h-2 bg-white/15 rounded-full overflow-hidden">
+                    <div className="h-full bg-white rounded-full transition-all duration-500" style={{ width: `${progressPct}%` }} />
+                  </div>
+                  <span className="text-xs font-bold text-white/90 shrink-0">{cl.completed}/{cl.total}</span>
+                </div>
+              </div>
+              <div className="shrink-0 w-10 h-10 bg-white/15 rounded-xl flex items-center justify-center group-hover:bg-white/25 transition-colors duration-200">
+                <svg className="w-5 h-5 text-white" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
+                </svg>
+              </div>
+            </div>
+          </Link>
+        );
+      })()}
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Weekly Activity */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
           <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-gray-800">Weekly Activity</h3>
-              <p className="text-xs text-gray-400 mt-0.5">Minutes spent learning this week</p>
+              <p className="text-xs text-gray-400 mt-0.5">Learning actions this week</p>
             </div>
             <div className="flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 rounded-lg">
               <div className="w-2 h-2 rounded-full bg-violet-500"></div>
@@ -162,35 +247,34 @@ function LearnerDashboard({ user }) {
             </div>
           </div>
           <div className="flex items-end gap-2.5 h-36">
-            {weekDays.map((day, i) => {
-              const isToday = i === new Date().getDay() - 1;
+            {weeklyActivity.map((item) => {
+              const isToday = item.date === new Date().toISOString().slice(0, 10);
               return (
-                <div key={day} className="flex-1 flex flex-col items-center gap-2">
+                <div key={item.date} className="flex-1 flex flex-col items-center gap-2">
                   <div className="w-full relative group/bar cursor-default">
-                    {weekActivity[i] > 0 && (
+                    {item.count > 0 && (
                       <div className="absolute -top-7 left-1/2 -translate-x-1/2 bg-gray-800 text-white text-[10px] font-bold px-2 py-1 rounded-lg opacity-0 group-hover/bar:opacity-100 transition-opacity duration-200 whitespace-nowrap z-10">
-                        {weekActivity[i]}m
+                        {item.count} action{item.count > 1 ? 's' : ''}
                       </div>
                     )}
                     <div className="w-full bg-gray-50 rounded-xl overflow-hidden" style={{ height: '120px' }}>
                       <div
                         className={`w-full absolute bottom-0 rounded-xl transition-all duration-500 ${
-                          weekActivity[i] > 0 
-                            ? 'bg-gradient-to-t from-violet-600 to-purple-400 group-hover/bar:from-violet-500 group-hover/bar:to-purple-300' 
+                          item.count > 0
+                            ? 'bg-gradient-to-t from-violet-600 to-purple-400 group-hover/bar:from-violet-500 group-hover/bar:to-purple-300'
                             : 'bg-gray-100'
                         }`}
-                        style={{ height: `${(weekActivity[i] / maxActivity) * 100}%`, minHeight: weekActivity[i] > 0 ? '8px' : '4px' }}
+                        style={{ height: `${(item.count / maxActivity) * 100}%`, minHeight: item.count > 0 ? '8px' : '4px' }}
                       />
                     </div>
                   </div>
-                  <span className={`text-[11px] font-semibold ${isToday ? 'text-violet-600' : 'text-gray-400'}`}>{day}</span>
+                  <span className={`text-[11px] font-semibold ${isToday ? 'text-violet-600' : 'text-gray-400'}`}>{item.day}</span>
                 </div>
               );
             })}
           </div>
         </div>
 
-        {/* Level Test Card */}
         <div className="bg-gradient-to-br from-violet-50 via-purple-50 to-fuchsia-50 rounded-2xl border border-violet-100/50 p-6 flex flex-col shadow-sm relative overflow-hidden">
           <div className="absolute top-0 right-0 w-24 h-24 bg-violet-200/20 rounded-full -translate-y-1/3 translate-x-1/4" />
           <div className="relative z-10 flex flex-col h-full">
@@ -201,7 +285,7 @@ function LearnerDashboard({ user }) {
             </div>
             <h3 className="text-base font-bold text-gray-800 mb-1.5">Placement Test</h3>
             <p className="text-[13px] text-gray-500 leading-relaxed flex-1">
-              Discover your level with a quick 5-category assessment — Vocabulary, Grammar, Reading, Writing & Listening.
+              Discover your level with a quick 5-category assessment: Vocabulary, Grammar, Reading, Writing, and Listening.
             </p>
             <Link to="/learner/test" className="mt-4 inline-flex items-center gap-2 px-5 py-3 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:from-violet-700 hover:to-purple-700 transition-all duration-200 shadow-md shadow-violet-500/20 w-fit">
               Take the Test
@@ -211,21 +295,19 @@ function LearnerDashboard({ user }) {
         </div>
       </div>
 
-      {/* Quick Actions — Explore */}
       <div>
         <h3 className="text-base font-bold text-gray-800 mb-4">Explore</h3>
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {[
-            { label: 'Languages', desc: 'Choose a language to learn', icon: '🌍', to: '/learner/languages', gradient: 'from-violet-500 to-purple-600', light: 'from-violet-50 to-purple-50' },
-            { label: 'My Courses', desc: 'Continue learning chapters', icon: '📖', to: '/learner/courses', gradient: 'from-emerald-500 to-teal-500', light: 'from-emerald-50 to-teal-50' },
-            { label: 'Exercises', desc: 'Practice your skills', icon: '🧩', to: '/learner/exercises', gradient: 'from-amber-500 to-orange-500', light: 'from-amber-50 to-orange-50' },
-            { label: 'My Progress', desc: 'Track your growth', icon: '🏆', to: '/learner/progress', gradient: 'from-rose-500 to-pink-500', light: 'from-rose-50 to-pink-50' },
+            { label: 'Languages', desc: 'Choose a language to learn', icon: (<svg className="w-6 h-6 text-violet-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" /></svg>), to: '/learner/languages', gradient: 'from-violet-500 to-purple-600', light: 'from-violet-50 to-purple-50' },
+            { label: 'My Courses', desc: 'Continue learning chapters', icon: (<svg className="w-6 h-6 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg>), to: '/learner/courses', gradient: 'from-emerald-500 to-teal-500', light: 'from-emerald-50 to-teal-50' },
+            { label: 'Exercises', desc: 'Practice your skills', icon: (<svg className="w-6 h-6 text-amber-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" /></svg>), to: '/learner/exercises', gradient: 'from-amber-500 to-orange-500', light: 'from-amber-50 to-orange-50' },
+            { label: 'My Progress', desc: 'Track your growth', icon: (<svg className="w-6 h-6 text-rose-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" /></svg>), to: '/learner/progress', gradient: 'from-rose-500 to-pink-500', light: 'from-rose-50 to-pink-50' },
           ].map((item) => (
             <Link key={item.label} to={item.to} className="group bg-white rounded-2xl border border-gray-100 overflow-hidden hover:shadow-xl hover:-translate-y-1.5 transition-all duration-300 block">
-              {/* Top gradient accent */}
               <div className={`h-1.5 bg-gradient-to-r ${item.gradient}`} />
               <div className="p-5">
-                <div className={`w-12 h-12 bg-gradient-to-br ${item.light} rounded-xl flex items-center justify-center mb-3 text-xl group-hover:scale-110 transition-transform duration-300`}>
+                <div className={`w-12 h-12 bg-gradient-to-br ${item.light} rounded-xl flex items-center justify-center mb-3 group-hover:scale-110 transition-transform duration-300`}>
                   {item.icon}
                 </div>
                 <h4 className="font-bold text-gray-800 text-[14px] mb-1 group-hover:text-violet-700 transition-colors duration-200">{item.label}</h4>
@@ -243,13 +325,6 @@ function LearnerDashboard({ user }) {
   );
 }
 
-function LearnerStats() {
-  return null; // Handled by LearnerDashboard
-}
-
-function LearnerActions() {
-  return null; // Handled by LearnerDashboard
-}
 
 // ─── Instructor Components ─────────────────────────────
 
@@ -473,13 +548,7 @@ function InstructorDashboard({ user }) {
   );
 }
 
-function InstructorStats() {
-  return null; // Handled by InstructorDashboard
-}
 
-function InstructorActions() {
-  return null; // Handled by InstructorDashboard
-}
 
 // ─── Admin Components ──────────────────────────────────
 
@@ -584,29 +653,7 @@ function BookIcon() {
   );
 }
 
-function CheckIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M9 12.75L11.25 15 15 9.75M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-    </svg>
-  );
-}
 
-function FireIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M15.362 5.214A8.252 8.252 0 0112 21 8.25 8.25 0 016.038 7.048 8.287 8.287 0 009 9.6a8.983 8.983 0 013.361-6.867 8.21 8.21 0 003 2.48z" />
-    </svg>
-  );
-}
-
-function ChartIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-    </svg>
-  );
-}
 
 function UsersIcon() {
   return (
@@ -616,21 +663,7 @@ function UsersIcon() {
   );
 }
 
-function FileIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
-    </svg>
-  );
-}
 
-function StarIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M11.48 3.499a.562.562 0 011.04 0l2.125 5.111a.563.563 0 00.475.345l5.518.442c.499.04.701.663.321.988l-4.204 3.602a.563.563 0 00-.182.557l1.285 5.385a.562.562 0 01-.84.61l-4.725-2.885a.563.563 0 00-.586 0L6.982 20.54a.562.562 0 01-.84-.61l1.285-5.386a.562.562 0 00-.182-.557l-4.204-3.602a.563.563 0 01.321-.988l5.518-.442a.563.563 0 00.475-.345L11.48 3.5z" />
-    </svg>
-  );
-}
 
 function GlobeIcon() {
   return (
@@ -640,13 +673,7 @@ function GlobeIcon() {
   );
 }
 
-function SearchIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607z" />
-    </svg>
-  );
-}
+
 
 function UserIcon() {
   return (
@@ -656,10 +683,4 @@ function UserIcon() {
   );
 }
 
-function PlusIcon() {
-  return (
-    <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-      <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
-    </svg>
-  );
-}
+

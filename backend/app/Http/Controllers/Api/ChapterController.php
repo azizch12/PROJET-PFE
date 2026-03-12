@@ -4,7 +4,9 @@ namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Chapter;
+use App\Models\ChapterProgress;
 use App\Models\Language;
+use App\Models\LearnerLevel;
 use App\Models\Level;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Storage;
@@ -175,29 +177,151 @@ class ChapterController extends Controller
     }
 
     /**
-     * Get published chapters for a language, grouped by level (for learners).
+     * Get published chapters for a language, filtered by the learner's current level.
+     * Returns needs_test=true if the learner hasn't taken the placement test.
      */
     public function learnerChapters(Request $request)
     {
         $request->validate(['language_id' => 'required|exists:languages,id']);
 
-        $levels = Level::where('language_id', $request->language_id)
-            ->where('is_active', true)
-            ->orderBy('order')
-            ->with(['chapters' => function ($q) {
-                $q->where('is_published', true)->orderBy('order');
-            }])
-            ->get(['id', 'name', 'description', 'order']);
+        $userId = $request->user()->id;
+        $langId = $request->language_id;
 
-        // Append pdf_url to each chapter
-        $levels->each(function ($level) {
-            $level->chapters->transform(function ($ch) {
-                $ch->pdf_url = $ch->pdf_path ? asset('storage/' . $ch->pdf_path) : null;
-                return $ch;
-            });
+        // Check if learner has a level for this language
+        $learnerLevel = LearnerLevel::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->with('level:id,name,order')
+            ->first();
+
+        if (!$learnerLevel) {
+            return response()->json([
+                'needs_test' => true,
+                'chapters'   => [],
+                'progress'   => null,
+            ]);
+        }
+
+        // Get chapters only for the learner's current level
+        $chapters = Chapter::where('language_id', $langId)
+            ->where('level_id', $learnerLevel->level_id)
+            ->where('is_published', true)
+            ->orderBy('order')
+            ->get();
+
+        $chapters->transform(function ($ch) {
+            $ch->pdf_url = $ch->pdf_path ? asset('storage/' . $ch->pdf_path) : null;
+            return $ch;
         });
 
-        return response()->json($levels);
+        // Get completed chapter progress for this user + language
+        $completedMap = ChapterProgress::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->pluck('completed_at', 'chapter_id')
+            ->toArray();
+
+        // Attach completion status + timestamp
+        $chapters->each(function ($ch) use ($completedMap) {
+            $ch->is_completed = isset($completedMap[$ch->id]);
+            $ch->completed_at = $completedMap[$ch->id] ?? null;
+        });
+
+        $totalChapters = $chapters->count();
+        $completedCount = $chapters->where('is_completed', true)->count();
+
+        // Check if there's a next level available
+        $currentOrder = $learnerLevel->level->order;
+        $nextLevel = Level::where('language_id', $langId)
+            ->where('order', $currentOrder + 1)
+            ->where('is_active', true)
+            ->first();
+
+        // Check if all chapters are completed (level test needed to advance)
+        $levelCompleted = $totalChapters > 0 && $completedCount >= $totalChapters && !!$nextLevel;
+
+        return response()->json([
+            'needs_test'      => false,
+            'level'           => $learnerLevel->level,
+            'chapters'        => $chapters,
+            'progress'        => [
+                'completed'  => $completedCount,
+                'total'      => $totalChapters,
+                'percentage' => $totalChapters > 0 ? round(($completedCount / $totalChapters) * 100) : 0,
+            ],
+            'has_next_level'  => !!$nextLevel,
+            'next_level'      => $nextLevel ? $nextLevel->only(['id', 'name', 'order']) : null,
+            'level_completed' => $levelCompleted,
+        ]);
+    }
+
+    /**
+     * Mark a chapter as completed. If all chapters in the level are done, level up.
+     */
+    public function completeChapter(Request $request, Chapter $chapter)
+    {
+        $userId = $request->user()->id;
+        $langId = $chapter->language_id;
+
+        // Ensure chapter is published
+        if (!$chapter->is_published) {
+            return response()->json(['message' => 'Chapter not available.'], 404);
+        }
+
+        // Ensure learner has a level for this language
+        $learnerLevel = LearnerLevel::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->first();
+
+        if (!$learnerLevel || $learnerLevel->level_id !== $chapter->level_id) {
+            return response()->json(['message' => 'This chapter is not in your current level.'], 403);
+        }
+
+        // Mark as completed (ignore if already done)
+        ChapterProgress::firstOrCreate(
+            ['user_id' => $userId, 'chapter_id' => $chapter->id],
+            ['language_id' => $langId, 'completed_at' => now()]
+        );
+
+        // Check if ALL published chapters in this level are now completed
+        $totalInLevel = Chapter::where('language_id', $langId)
+            ->where('level_id', $learnerLevel->level_id)
+            ->where('is_published', true)
+            ->count();
+
+        $completedInLevel = ChapterProgress::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->whereHas('chapter', function ($q) use ($learnerLevel) {
+                $q->where('level_id', $learnerLevel->level_id)
+                  ->where('is_published', true);
+            })
+            ->count();
+
+        $needsLevelTest = false;
+        $nextLevel = null;
+
+        if ($completedInLevel >= $totalInLevel && $totalInLevel > 0) {
+            // Check if there's a next level
+            $currentOrder = Level::find($learnerLevel->level_id)->order;
+            $next = Level::where('language_id', $langId)
+                ->where('order', $currentOrder + 1)
+                ->where('is_active', true)
+                ->first();
+
+            if ($next) {
+                // Don't auto-level-up — learner must retake placement test first
+                $needsLevelTest = true;
+                $nextLevel = $next->only(['id', 'name', 'order']);
+            }
+        }
+
+        return response()->json([
+            'completed'        => true,
+            'leveled_up'       => false,
+            'needs_level_test' => $needsLevelTest,
+            'next_level'       => $nextLevel,
+            'completed_count'  => $completedInLevel,
+            'total_count'      => $totalInLevel,
+            'percentage'       => $totalInLevel > 0 ? round(($completedInLevel / $totalInLevel) * 100) : 0,
+        ]);
     }
 
     /**

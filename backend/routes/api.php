@@ -4,6 +4,7 @@ use App\Http\Controllers\Api\AdminController;
 use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\LanguageController;
+use App\Http\Controllers\Api\LearnerAnalyticsController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TestController;
 use Illuminate\Support\Facades\Route;
@@ -28,13 +29,17 @@ Route::middleware('auth:sanctum')->group(function () {
     // Public (authenticated) – active languages for learners
     Route::get('/languages/active', [LanguageController::class, 'activeLanguages']);
 
-    // Learner – chapters by language (grouped by level)
+    // Learner – chapters by language (level-filtered + progress)
     Route::get('/learner/chapters', [ChapterController::class, 'learnerChapters']);
+    Route::post('/learner/chapters/{chapter}/complete', [ChapterController::class, 'completeChapter']);
+    Route::get('/learner/dashboard', [LearnerAnalyticsController::class, 'dashboard']);
+    Route::get('/learner/progress', [LearnerAnalyticsController::class, 'progress']);
 
     // Learner – placement test
     Route::get('/learner/test',          [TestController::class, 'getTest']);
     Route::post('/learner/test/submit',  [TestController::class, 'submitTest']);
     Route::get('/learner/test/result',   [TestController::class, 'getResult']);
+    Route::post('/learner/test/retake',  [TestController::class, 'retakeTest']);
 
     // Instructor-only routes
     Route::middleware('instructor')->prefix('instructor')->group(function () {

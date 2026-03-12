@@ -129,10 +129,16 @@ export const updateTestQuestion     = (id, data) => {
 export const deleteTestQuestion     = (id)     => client.delete(`/instructor/test-questions/${id}`);
 export const getTestQuestionStats   = (params) => client.get('/instructor/test-questions/stats', { params });
 
-// Learner – chapters by language
+// Learner – chapters by language (level-filtered + progress)
 export const getLearnerChapters     = (params) => client.get('/learner/chapters', { params });
+export const completeChapter        = (id)     => client.post(`/learner/chapters/${id}/complete`);
 
 // Learner – placement test
 export const getLearnerTest         = (params) => client.get('/learner/test', { params });
 export const submitLearnerTest      = (data)   => client.post('/learner/test/submit', data);
 export const getLearnerTestResult   = (params) => client.get('/learner/test/result', { params });
+export const retakeLearnerTest      = (data)   => client.post('/learner/test/retake', data);
+
+
+export const getLearnerDashboard    = ()       => client.get('/learner/dashboard');
+export const getLearnerProgress     = (params) => client.get('/learner/progress', { params });

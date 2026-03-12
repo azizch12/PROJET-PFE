@@ -1,5 +1,6 @@
 import { createBrowserRouter, Navigate, Outlet } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
+import LandingPage from '../pages/LandingPage';
 import LoginPage from '../pages/auth/LoginPage';
 import RegisterPage from '../pages/auth/RegisterPage';
 import ForgotPasswordPage from '../pages/auth/ForgotPasswordPage';
@@ -21,7 +22,7 @@ import AdminLayout from '../components/AdminLayout';
 import InstructorLayout from '../components/InstructorLayout';
 import LearnerLayout from '../components/LearnerLayout';
 
-// If already logged in, redirect away from login/register pages
+// If already logged in, redirect away from login/register/landing pages
 function GuestRoute() {
   const { isAuthenticated, loading } = useAuth();
 
@@ -49,6 +50,7 @@ const router = createBrowserRouter([
   {
     element: <GuestRoute />,
     children: [
+      { path: '/',                element: <LandingPage /> },
       { path: '/login',           element: <LoginPage /> },
       { path: '/register',        element: <RegisterPage /> },
       { path: '/forgot-password', element: <ForgotPasswordPage /> },
@@ -108,7 +110,7 @@ const router = createBrowserRouter([
   },
   // SSO callback route (must be public, outside GuestRoute/ProtectedRoute)
   { path: '/sso-callback', element: <SSOCallbackPage /> },
-  { path: '*', element: <Navigate to="/login" replace /> },
+  { path: '*', element: <Navigate to="/" replace /> },
 ]);
 
 export default router;

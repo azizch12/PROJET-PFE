@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
   const logout = async () => {
     try { await logoutUser(); } catch {}
     localStorage.removeItem('token');
+    localStorage.removeItem('selectedLanguageId');
     setUser(null);
   };
 

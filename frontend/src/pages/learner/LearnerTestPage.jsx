@@ -1,5 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { getLearnerTest, submitLearnerTest } from '../../api/auth';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import { getLearnerTest, submitLearnerTest, retakeLearnerTest } from '../../api/auth';
 
 const CATEGORY_META = {
   vocabulary: { icon: '📝', label: 'Vocabulary', color: 'text-purple-600 bg-purple-50' },
@@ -18,6 +19,10 @@ const LEVEL_STYLES = {
 const TEST_DURATION_MINUTES = 20;
 
 export default function LearnerTestPage() {
+  const [searchParams] = useSearchParams();
+  const navigate = useNavigate();
+  const isLevelUp = searchParams.get('mode') === 'levelup';
+
   const [phase, setPhase] = useState('loading');
   const [questions, setQuestions] = useState([]);
   const [currentIdx, setCurrentIdx] = useState(0);
@@ -27,6 +32,7 @@ export default function LearnerTestPage() {
   const [submitting, setSubmitting] = useState(false);
   const [timeLeft, setTimeLeft] = useState(TEST_DURATION_MINUTES * 60); // seconds
   const [showCorrections, setShowCorrections] = useState(false);
+  const [leveledUp, setLeveledUp] = useState(false);
   const audioRef = useRef(null);
   const timerRef = useRef(null);
   const autoSubmitRef = useRef(false);
@@ -53,7 +59,17 @@ export default function LearnerTestPage() {
       .catch(() => setPhase('error'));
   }, [langId]);
 
-  useEffect(() => { loadTest(); }, [loadTest]);
+  // When mode=levelup, delete old result first then load fresh test
+  useEffect(() => {
+    if (isLevelUp && langId) {
+      setPhase('loading');
+      retakeLearnerTest({ language_id: langId })
+        .then(() => loadTest())
+        .catch(() => setPhase('error'));
+    } else {
+      loadTest();
+    }
+  }, [isLevelUp, langId, loadTest]);
 
   useEffect(() => {
     const handler = () => loadTest();
@@ -120,6 +136,9 @@ export default function LearnerTestPage() {
       const { data } = await submitLearnerTest(payload);
       setResult(data.result);
       setCorrections(data.corrections || []);
+      if (data.leveled_up) {
+        setLeveledUp(true);
+      }
       setPhase('result');
     } catch {
       // ignore
@@ -196,15 +215,21 @@ export default function LearnerTestPage() {
     const perCatMax = result.max_score / 5;
 
     const catScores = [
-      { key: 'vocab_score',     label: 'Vocabulary', icon: '📝' },
-      { key: 'grammar_score',   label: 'Grammar',    icon: '📐' },
-      { key: 'reading_score',   label: 'Reading',    icon: '📖' },
-      { key: 'listening_score', label: 'Listening',  icon: '🎧' },
-      { key: 'writing_score',   label: 'Writing',    icon: '✍️' },
+      { key: 'vocab_score',     label: 'Vocabulary', icon: '📝', color: 'from-purple-500 to-purple-400' },
+      { key: 'grammar_score',   label: 'Grammar',    icon: '📐', color: 'from-blue-500 to-blue-400' },
+      { key: 'reading_score',   label: 'Reading',    icon: '📖', color: 'from-emerald-500 to-emerald-400' },
+      { key: 'listening_score', label: 'Listening',  icon: '🎧', color: 'from-cyan-500 to-cyan-400' },
+      { key: 'writing_score',   label: 'Writing',    icon: '✍️', color: 'from-amber-500 to-amber-400' },
     ];
 
     const correctCount = corrections.filter((c) => c.is_correct).length;
     const wrongCount = corrections.filter((c) => !c.is_correct).length;
+
+    const circumference = 2 * Math.PI * 54;
+    const strokeDash = (pct / 100) * circumference;
+    const gradeLabel = pct >= 90 ? 'Excellent' : pct >= 70 ? 'Great' : pct >= 50 ? 'Good' : pct >= 30 ? 'Fair' : 'Keep Going';
+    const gradeColor = pct >= 70 ? 'text-emerald-500' : pct >= 40 ? 'text-amber-500' : 'text-rose-500';
+    const strokeColor = pct >= 70 ? 'stroke-emerald-500' : pct >= 40 ? 'stroke-amber-500' : 'stroke-rose-500';
 
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
@@ -213,37 +238,80 @@ export default function LearnerTestPage() {
           <p className="text-sm text-gray-500 mt-1">Here's how you performed on the placement test</p>
         </div>
 
-        {/* Level Card */}
-        <div className={`bg-gradient-to-br ${lvl.color} rounded-2xl p-8 text-center text-white relative overflow-hidden`}>
+        {/* Score + Level Hero Card */}
+        <div className={`bg-gradient-to-br ${lvl.color} rounded-2xl p-8 text-white relative overflow-hidden`}>
           <div className="absolute top-0 right-0 w-40 h-40 bg-white/10 rounded-full -translate-y-1/2 translate-x-1/3" />
-          <span className="text-5xl mb-3 block">{lvl.icon}</span>
-          <h2 className="text-3xl font-bold mb-1">{result.level?.name}</h2>
-          <p className="text-white/80 text-sm">Your proficiency level</p>
-          <div className="mt-4 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
-            <span className="text-2xl font-bold">{result.total_score}</span>
-            <span className="text-white/70 text-sm">/ {result.max_score} pts ({pct}%)</span>
+          <div className="absolute bottom-0 left-0 w-24 h-24 bg-white/5 rounded-full translate-y-1/3 -translate-x-1/4" />
+          <div className="relative z-10 flex flex-col sm:flex-row items-center gap-6">
+            {/* Radial Score Gauge */}
+            <div className="relative w-36 h-36 shrink-0">
+              <svg className="w-36 h-36 -rotate-90" viewBox="0 0 120 120">
+                <circle cx="60" cy="60" r="54" fill="none" stroke="rgba(255,255,255,0.15)" strokeWidth="8" />
+                <circle cx="60" cy="60" r="54" fill="none" className={strokeColor} strokeWidth="8" strokeLinecap="round"
+                  strokeDasharray={`${strokeDash} ${circumference}`}
+                  style={{ transition: 'stroke-dasharray 1.2s ease-out' }}
+                />
+              </svg>
+              <div className="absolute inset-0 flex flex-col items-center justify-center">
+                <span className="text-3xl font-extrabold">{pct}%</span>
+                <span className={`text-xs font-semibold mt-0.5 ${gradeColor} bg-white/20 px-2 py-0.5 rounded-full`}>{gradeLabel}</span>
+              </div>
+            </div>
+            {/* Level info */}
+            <div className="text-center sm:text-left flex-1">
+              <span className="text-5xl mb-3 block">{lvl.icon}</span>
+              <h2 className="text-3xl font-bold mb-1">{result.level?.name}</h2>
+              <p className="text-white/80 text-sm">Your proficiency level</p>
+              <div className="mt-3 inline-flex items-center gap-2 bg-white/20 backdrop-blur-sm rounded-xl px-4 py-2">
+                <span className="text-2xl font-bold">{result.total_score}</span>
+                <span className="text-white/70 text-sm">/ {result.max_score} pts</span>
+              </div>
+            </div>
           </div>
+          {/* Quick stats row */}
+          {corrections.length > 0 && (
+            <div className="relative z-10 flex items-center justify-center gap-4 mt-6 pt-5 border-t border-white/15">
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
+                <svg className="w-4 h-4 text-emerald-300" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z" clipRule="evenodd" /></svg>
+                <span className="text-sm font-bold">{correctCount}</span>
+                <span className="text-xs text-white/70">correct</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
+                <svg className="w-4 h-4 text-red-300" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M4.293 4.293a1 1 0 011.414 0L10 8.586l4.293-4.293a1 1 0 111.414 1.414L11.414 10l4.293 4.293a1 1 0 01-1.414 1.414L10 11.414l-4.293 4.293a1 1 0 01-1.414-1.414L8.586 10 4.293 5.707a1 1 0 010-1.414z" clipRule="evenodd" /></svg>
+                <span className="text-sm font-bold">{wrongCount}</span>
+                <span className="text-xs text-white/70">incorrect</span>
+              </div>
+              <div className="flex items-center gap-1.5 bg-white/15 rounded-lg px-3 py-1.5">
+                <span className="text-sm font-bold">{corrections.length}</span>
+                <span className="text-xs text-white/70">total</span>
+              </div>
+            </div>
+          )}
         </div>
 
-        {/* Category Breakdown */}
-        <div className="bg-white rounded-2xl border border-gray-100 p-6 space-y-4">
-          <h3 className="text-base font-semibold text-gray-800">Score Breakdown</h3>
+        {/* Category Breakdown — Visual Cards */}
+        <div className="grid grid-cols-5 gap-3">
           {catScores.map((cat) => {
             const score = result[cat.key] || 0;
             const maxCat = perCatMax || 1;
             const catPct = Math.round((score / maxCat) * 100);
             return (
-              <div key={cat.key}>
-                <div className="flex items-center justify-between mb-1.5">
-                  <span className="text-sm font-medium text-gray-700">{cat.icon} {cat.label}</span>
-                  <span className="text-sm font-semibold text-gray-600">{score}/{maxCat} <span className="text-gray-400 font-normal">({catPct}%)</span></span>
+              <div key={cat.key} className="bg-white rounded-2xl border border-gray-100 p-4 text-center hover:shadow-md transition-shadow duration-200">
+                <span className="text-2xl block mb-2">{cat.icon}</span>
+                <div className="relative w-12 h-12 mx-auto mb-2">
+                  <svg className="w-12 h-12 -rotate-90" viewBox="0 0 48 48">
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="#f3f4f6" strokeWidth="4" />
+                    <circle cx="24" cy="24" r="20" fill="none" stroke="currentColor" strokeWidth="4" strokeLinecap="round"
+                      className={catPct >= 70 ? 'text-emerald-500' : catPct >= 40 ? 'text-amber-500' : 'text-rose-400'}
+                      strokeDasharray={`${(catPct / 100) * 125.7} 125.7`}
+                    />
+                  </svg>
+                  <div className="absolute inset-0 flex items-center justify-center">
+                    <span className="text-[11px] font-extrabold text-gray-700">{catPct}%</span>
+                  </div>
                 </div>
-                <div className="w-full h-2.5 bg-gray-100 rounded-full overflow-hidden">
-                  <div
-                    className={`h-full bg-gradient-to-r ${lvl.color} rounded-full transition-all duration-700`}
-                    style={{ width: `${Math.min(100, catPct)}%` }}
-                  />
-                </div>
+                <p className="text-[11px] font-semibold text-gray-600">{cat.label}</p>
+                <p className="text-[10px] text-gray-400">{score}/{maxCat}</p>
               </div>
             );
           })}
@@ -337,7 +405,8 @@ export default function LearnerTestPage() {
           </div>
         )}
 
-        <div className="text-center">
+        {/* Actions */}
+        <div className="flex items-center justify-center">
           <a href="/learner/courses" className="inline-flex items-center gap-2 px-6 py-3 bg-violet-600 text-white rounded-xl text-sm font-semibold hover:bg-violet-700 transition-colors shadow-sm shadow-violet-600/20">
             Go to My Courses
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -345,6 +414,30 @@ export default function LearnerTestPage() {
             </svg>
           </a>
         </div>
+
+        {/* Level-Up Celebration Overlay */}
+        {leveledUp && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
+            <div className="relative bg-white rounded-3xl shadow-2xl max-w-md w-full p-10 text-center">
+              <div className="text-6xl mb-4 animate-bounce">🎉</div>
+              <h2 className="text-2xl font-extrabold text-gray-900 mb-2">Level Up!</h2>
+              <p className="text-gray-600 mb-2">Congratulations! You've advanced to</p>
+              <div className={`inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-lg font-bold text-white bg-gradient-to-r ${lvl.color} mb-6`}>
+                <span className="text-2xl">{lvl.icon}</span>
+                {result.level?.name}
+              </div>
+              <p className="text-sm text-gray-400 mb-6">Keep up the great work — new chapters await!</p>
+              <button
+                onClick={() => navigate('/learner/courses')}
+                className="w-full px-6 py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white rounded-xl text-sm font-semibold hover:from-violet-700 hover:to-purple-700 transition-all shadow-lg shadow-violet-500/25 cursor-pointer"
+              >
+                Go to My Courses
+              </button>
+            </div>
+          </div>
+        )}
+
       </div>
     );
   }
@@ -354,9 +447,26 @@ export default function LearnerTestPage() {
     return (
       <div className="space-y-6 max-w-2xl mx-auto">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Placement Test</h1>
-          <p className="text-sm text-gray-500 mt-1">Find your level and get personalized courses</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {isLevelUp ? 'Level-Up Test' : 'Placement Test'}
+          </h1>
+          <p className="text-sm text-gray-500 mt-1">
+            {isLevelUp
+              ? 'Complete this test to advance to the next level'
+              : 'Find your level and get personalized courses'}
+          </p>
         </div>
+
+        {/* Level-up banner */}
+        {isLevelUp && (
+          <div className="bg-gradient-to-r from-amber-50 to-orange-50 border border-amber-200 rounded-2xl p-5 flex items-center gap-4">
+            <span className="text-3xl">🏆</span>
+            <div>
+              <h3 className="text-sm font-bold text-amber-800">You've completed all chapters!</h3>
+              <p className="text-xs text-amber-600 mt-0.5">Pass this test to prove you're ready for the next level.</p>
+            </div>
+          </div>
+        )}
 
         {/* How it works */}
         <div className="bg-gradient-to-br from-violet-50 via-purple-50 to-indigo-50 rounded-2xl border border-violet-100/50 p-8">
@@ -365,7 +475,7 @@ export default function LearnerTestPage() {
             {[
               { step: '01', title: 'Answer Questions', desc: `${totalQ} questions covering 5 skill areas`, icon: '❓' },
               { step: '02', title: 'Auto-graded', desc: `${TEST_DURATION_MINUTES}-minute time limit, scored instantly`, icon: '⏱️' },
-              { step: '03', title: 'Get Your Level', desc: 'Beginner, Intermediate, or Advanced', icon: '🎯' },
+              { step: '03', title: isLevelUp ? 'Advance' : 'Get Your Level', desc: isLevelUp ? 'Move up to the next level' : 'Beginner, Intermediate, or Advanced', icon: '🎯' },
             ].map((item) => (
               <div key={item.step} className="bg-white/70 backdrop-blur-sm rounded-2xl p-6 border border-white/80">
                 <div className="flex items-center gap-3 mb-3">
@@ -409,7 +519,7 @@ export default function LearnerTestPage() {
             onClick={() => setPhase('test')}
             className="inline-flex items-center gap-2 px-8 py-3.5 bg-gradient-to-r from-violet-600 to-purple-600 text-white text-sm font-semibold rounded-xl hover:from-violet-700 hover:to-purple-700 shadow-lg shadow-violet-500/25 transition-all cursor-pointer"
           >
-            Start Test
+            {isLevelUp ? 'Start Level-Up Test' : 'Start Test'}
             <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
               <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" />
             </svg>

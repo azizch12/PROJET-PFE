@@ -61,7 +61,34 @@ const navItems = [
   },
 ];
 
-/* ── Duolingo-style language dropdown (header) ── */
+function FlagBadge({ lang, size = 'w-7 h-7' }) {
+  if (!lang) {
+    return (
+      <div className={`${size} rounded-full bg-gray-200 flex items-center justify-center text-gray-400`}>
+        <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+          <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+        </svg>
+      </div>
+    );
+  }
+
+  if (lang.image_url) {
+    return (
+      <img
+        src={lang.image_url}
+        alt={lang.name}
+        className={`${size} rounded-full object-cover ring-2 ring-white shadow-sm`}
+      />
+    );
+  }
+
+  return (
+    <div className={`${size} rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm`}>
+      {lang.code?.toUpperCase()?.slice(0, 2)}
+    </div>
+  );
+}
+
 function LanguageDropdown() {
   const [languages, setLanguages] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -77,14 +104,23 @@ function LanguageDropdown() {
         const savedId = localStorage.getItem('selectedLanguageId');
         if (savedId && data.find((l) => l.id === Number(savedId))) {
           setSelected(data.find((l) => l.id === Number(savedId)));
-        } else if (data.length > 0) {
-          setSelected(data[0]);
-          localStorage.setItem('selectedLanguageId', data[0].id);
         }
       })
       .catch(() => {})
       .finally(() => setLoading(false));
   }, []);
+
+  useEffect(() => {
+    const onLangChanged = (e) => {
+      const id = e.detail?.languageId;
+      if (id) {
+        const lang = languages.find((l) => l.id === Number(id));
+        if (lang) setSelected(lang);
+      }
+    };
+    window.addEventListener('languageChanged', onLangChanged);
+    return () => window.removeEventListener('languageChanged', onLangChanged);
+  }, [languages]);
 
   useEffect(() => {
     const handler = (e) => {
@@ -97,31 +133,21 @@ function LanguageDropdown() {
   const pick = (lang) => {
     setSelected(lang);
     localStorage.setItem('selectedLanguageId', lang.id);
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { languageId: lang.id } }));
     setOpen(false);
   };
 
   if (loading || languages.length === 0) return null;
 
-  const Flag = ({ lang, size = 'w-7 h-7' }) =>
-    lang.image_url ? (
-      <img src={lang.image_url} alt={lang.name}
-        className={`${size} rounded-full object-cover ring-2 ring-white shadow-sm`} />
-    ) : (
-      <div className={`${size} rounded-full bg-gradient-to-br from-blue-500 to-indigo-500 flex items-center justify-center text-white font-bold text-[10px] shadow-sm`}>
-        {lang.code?.toUpperCase()?.slice(0, 2)}
-      </div>
-    );
-
   return (
     <div className="relative" ref={ref}>
-      {/* Trigger button */}
       <button
         onClick={() => setOpen(!open)}
         className="flex items-center gap-2.5 px-3 py-2 rounded-xl hover:bg-gray-100/80 transition-all duration-200 cursor-pointer group"
       >
-        <Flag lang={selected} />
-        <span className="text-[13px] font-semibold text-gray-700 max-w-[120px] truncate">
-          {selected?.name}
+        <FlagBadge lang={selected} />
+        <span className={`text-[13px] font-semibold max-w-[120px] truncate ${selected ? 'text-gray-700' : 'text-gray-400'}`}>
+          {selected?.name || 'Choose language'}
         </span>
         <svg
           className={`w-3.5 h-3.5 text-gray-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`}
@@ -131,7 +157,6 @@ function LanguageDropdown() {
         </svg>
       </button>
 
-      {/* Dropdown panel */}
       {open && (
         <div className="absolute top-full right-0 mt-2 w-72 bg-white rounded-2xl shadow-xl shadow-gray-200/60 border border-gray-100 py-2 z-50 animate-in fade-in slide-in-from-top-2 duration-150">
           <p className="px-4 pt-1 pb-2 text-[10px] font-bold uppercase tracking-widest text-gray-400">
@@ -146,16 +171,14 @@ function LanguageDropdown() {
                   key={lang.id}
                   onClick={() => pick(lang)}
                   className={`w-full flex items-center gap-3 px-3 py-3 rounded-xl transition-all duration-150 cursor-pointer ${
-                    active
-                      ? 'bg-blue-50 ring-1 ring-blue-200/70'
-                      : 'hover:bg-gray-50'
+                    active ? 'bg-blue-50 ring-1 ring-blue-200/70' : 'hover:bg-gray-50'
                   }`}
                 >
-                  <Flag lang={lang} size="w-9 h-9" />
+                  <FlagBadge lang={lang} size="w-9 h-9" />
                   <div className="flex-1 text-left">
-                    <p className={`text-[13px] font-semibold ${
-                      active ? 'text-blue-700' : 'text-gray-700'
-                    }`}>{lang.name}</p>
+                    <p className={`text-[13px] font-semibold ${active ? 'text-blue-700' : 'text-gray-700'}`}>
+                      {lang.name}
+                    </p>
                     <p className="text-[11px] text-gray-400 uppercase">{lang.code}</p>
                   </div>
                   {active && (
@@ -168,10 +191,12 @@ function LanguageDropdown() {
             })}
           </div>
 
-          {/* Divider + Add a new course */}
           <div className="mx-3 my-1.5 h-px bg-gray-100" />
           <button
-            onClick={() => { setOpen(false); navigate('/learner/languages'); }}
+            onClick={() => {
+              setOpen(false);
+              navigate('/learner/languages');
+            }}
             className="w-full flex items-center gap-3 px-5 py-3 text-left hover:bg-gray-50 transition-colors duration-150 cursor-pointer rounded-b-2xl"
           >
             <div className="w-9 h-9 rounded-lg border-2 border-dashed border-gray-300 flex items-center justify-center">

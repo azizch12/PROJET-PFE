@@ -32,6 +32,7 @@ export default function LearnerLanguagesPage() {
   const handleSelect = (lang) => {
     setSelectedId(lang.id);
     localStorage.setItem('selectedLanguageId', lang.id);
+    window.dispatchEvent(new CustomEvent('languageChanged', { detail: { languageId: lang.id } }));
     setTimeout(() => navigate('/dashboard'), 350);
   };
 

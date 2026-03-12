@@ -341,19 +341,41 @@ class TestController extends Controller
         $percentage = $maxScore > 0 ? ($totalScore / $maxScore) * 100 : 0;
 
         if ($percentage >= 67) {
-            $levelOrder = 3; // Advanced
+            $scoredLevelOrder = 3; // Advanced
         } elseif ($percentage >= 34) {
-            $levelOrder = 2; // Intermediate
+            $scoredLevelOrder = 2; // Intermediate
         } else {
-            $levelOrder = 1; // Beginner
+            $scoredLevelOrder = 1; // Beginner
+        }
+
+        // Check if this is a level-up retake (learner already has a level)
+        $existingLearnerLevel = LearnerLevel::where('user_id', $request->user()->id)
+            ->where('language_id', $request->language_id)
+            ->first();
+
+        $isLevelUpRetake = false;
+        if ($existingLearnerLevel) {
+            // Level-up retake: always advance to the next level (current + 1), regardless of score
+            $currentOrder = Level::find($existingLearnerLevel->level_id)->order;
+            $targetLevelOrder = $currentOrder + 1;
+            $isLevelUpRetake = true;
+        } else {
+            // First-time test: use the scored level
+            $targetLevelOrder = $scoredLevelOrder;
         }
 
         $level = Level::where('language_id', $request->language_id)
-            ->where('order', $levelOrder)
+            ->where('order', $targetLevelOrder)
             ->first();
 
         if (!$level) {
-            return response()->json(['message' => 'Level configuration error.'], 500);
+            // Fallback: if target doesn't exist (e.g. already max), keep current level
+            if ($existingLearnerLevel) {
+                $level = Level::find($existingLearnerLevel->level_id);
+            }
+            if (!$level) {
+                return response()->json(['message' => 'Level configuration error.'], 500);
+            }
         }
 
         // Save result
@@ -370,11 +392,13 @@ class TestController extends Controller
             'writing_score'   => $scores['writing'],
         ]);
 
-        // Also update learner_levels table
+        // Update learner_levels table
         LearnerLevel::updateOrCreate(
             ['user_id' => $request->user()->id, 'language_id' => $request->language_id],
             ['level_id' => $level->id]
         );
+
+        $leveledUp = $isLevelUpRetake;
 
         $result->load('level:id,name,order');
 
@@ -424,6 +448,7 @@ class TestController extends Controller
             'percentage' => round($percentage, 1),
             'level_name' => $level->name,
             'corrections' => $corrections,
+            'leveled_up' => $leveledUp,
         ]);
     }
 
@@ -439,6 +464,59 @@ class TestController extends Controller
             ->first();
 
         return response()->json($result);
+    }
+
+    // ─── LEARNER: Retake test for level-up (only when all chapters completed) ───
+
+    public function retakeTest(Request $request)
+    {
+        $request->validate(['language_id' => 'required|exists:languages,id']);
+
+        $userId = $request->user()->id;
+        $langId = $request->language_id;
+
+        // Check learner has a level and has completed all chapters in it
+        $learnerLevel = LearnerLevel::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->first();
+
+        if (!$learnerLevel) {
+            return response()->json(['message' => 'No level found.'], 404);
+        }
+
+        $totalInLevel = \App\Models\Chapter::where('language_id', $langId)
+            ->where('level_id', $learnerLevel->level_id)
+            ->where('is_published', true)
+            ->count();
+
+        $completedInLevel = \App\Models\ChapterProgress::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->whereHas('chapter', function ($q) use ($learnerLevel) {
+                $q->where('level_id', $learnerLevel->level_id)->where('is_published', true);
+            })
+            ->count();
+
+        if ($completedInLevel < $totalInLevel || $totalInLevel === 0) {
+            return response()->json(['message' => 'You must complete all chapters before retaking the test.'], 422);
+        }
+
+        // Check there is a next level to advance to
+        $currentOrder = Level::find($learnerLevel->level_id)->order;
+        $nextLevel = Level::where('language_id', $langId)
+            ->where('order', $currentOrder + 1)
+            ->where('is_active', true)
+            ->first();
+
+        if (!$nextLevel) {
+            return response()->json(['message' => 'You are already at the highest level.'], 422);
+        }
+
+        // Delete existing test result so they can retake
+        TestResult::where('user_id', $userId)
+            ->where('language_id', $langId)
+            ->delete();
+
+        return response()->json(['message' => 'Test reset. You can retake it now.']);
     }
 
     // ─── Private helpers ───
