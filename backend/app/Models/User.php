@@ -19,11 +19,16 @@ class User extends Authenticatable
         'is_active',
         'bio',
         'avatar',
+        'email_verified_at',
+        'otp_code',
+        'otp_expires_at',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'otp_code',
+        'otp_expires_at',
     ];
 
     protected function casts(): array

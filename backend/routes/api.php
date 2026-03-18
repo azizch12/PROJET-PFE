@@ -5,8 +5,10 @@ use App\Http\Controllers\Api\AuthController;
 use App\Http\Controllers\Api\ChapterController;
 use App\Http\Controllers\Api\LanguageController;
 use App\Http\Controllers\Api\LearnerAnalyticsController;
+use App\Http\Controllers\Api\VerificationController;
 use App\Http\Controllers\Api\ProfileController;
 use App\Http\Controllers\Api\TestController;
+use App\Http\Controllers\ExerciseController;
 use Illuminate\Support\Facades\Route;
 
 // Public routes (no token needed)
@@ -26,6 +28,10 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/profile/avatar',  [ProfileController::class, 'updateAvatar']);
     Route::delete('/profile/avatar',[ProfileController::class, 'removeAvatar']);
 
+    // Email verification (OTP)
+    Route::post('/email/send-code',   [VerificationController::class, 'sendCode']);
+    Route::post('/email/verify-code', [VerificationController::class, 'verifyCode']);
+
     // Public (authenticated) – active languages for learners
     Route::get('/languages/active', [LanguageController::class, 'activeLanguages']);
 
@@ -34,6 +40,9 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::post('/learner/chapters/{chapter}/complete', [ChapterController::class, 'completeChapter']);
     Route::get('/learner/dashboard', [LearnerAnalyticsController::class, 'dashboard']);
     Route::get('/learner/progress', [LearnerAnalyticsController::class, 'progress']);
+
+    // Learner – AI-generated exercises
+    Route::get('/learner/exercises', [ExerciseController::class, 'generate']);
 
     // Learner – placement test
     Route::get('/learner/test',          [TestController::class, 'getTest']);

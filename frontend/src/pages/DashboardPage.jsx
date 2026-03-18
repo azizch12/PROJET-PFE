@@ -362,12 +362,15 @@ function InstructorDashboard({ user }) {
   if (loading) {
     return (
       <div className="space-y-6">
-        <div className="h-28 bg-gray-100 rounded-2xl animate-pulse" />
-        <div className="grid grid-cols-4 gap-4">
-          {[...Array(4)].map((_, i) => <div key={i} className="h-28 bg-gray-100 rounded-2xl animate-pulse" />)}
+        <div className="h-44 rounded-2xl animate-pulse bg-gradient-to-br from-blue-100 via-indigo-50 to-violet-100" />
+        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
+          {[...Array(4)].map((_, i) => (
+            <div key={i} className="h-32 bg-white rounded-2xl animate-pulse border border-gray-100" />
+          ))}
         </div>
-        <div className="grid grid-cols-3 gap-4">
-          {[...Array(3)].map((_, i) => <div key={i} className="h-40 bg-gray-100 rounded-2xl animate-pulse" />)}
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
+          <div className="lg:col-span-2 h-64 bg-white rounded-2xl animate-pulse border border-gray-100" />
+          <div className="h-64 bg-white rounded-2xl animate-pulse border border-gray-100" />
         </div>
       </div>
     );
@@ -375,78 +378,159 @@ function InstructorDashboard({ user }) {
 
   return (
     <div className="space-y-6">
-      {/* Welcome Header */}
-      <div className="relative overflow-hidden bg-white rounded-2xl border border-gray-100 p-7 shadow-sm">
-        <div className="absolute top-0 left-0 w-full h-1 bg-gradient-to-r from-violet-500 via-violet-400 to-violet-300" />
-        <div className="flex items-center justify-between">
-          <div>
-            <p className="text-sm text-gray-400 font-medium">{greeting()}</p>
-            <h1 className="text-2xl font-bold text-gray-900 tracking-tight mt-0.5">{user?.name}</h1>
-            <p className="text-sm text-gray-500 mt-1">
-              {new Date().toLocaleDateString('en-US', { weekday: 'long', month: 'long', day: 'numeric', year: 'numeric' })}
-            </p>
-          </div>
-          <div className="hidden sm:flex items-center gap-2">
-            {languages.map(lang => (
-              <span key={lang.id} className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-violet-50 text-violet-700 rounded-lg text-xs font-semibold ring-1 ring-violet-100">
-                {lang.image_url && <img src={lang.image_url} alt="" className="w-4 h-4 rounded-sm object-cover" />}
-                {lang.name}
-              </span>
-            ))}
+      {/* ── Hero Welcome Banner ── */}
+      <div className="relative overflow-hidden bg-gradient-to-br from-blue-600 via-indigo-600 to-violet-700 rounded-2xl p-7 sm:p-8 text-white shadow-xl shadow-indigo-500/15">
+        {/* Decorative shapes */}
+        <div className="absolute top-0 right-0 w-72 h-72 bg-white/5 rounded-full -translate-y-1/2 translate-x-1/4" />
+        <div className="absolute bottom-0 left-1/4 w-40 h-40 bg-white/5 rounded-full translate-y-1/2" />
+        <div className="absolute top-1/2 right-1/3 w-20 h-20 bg-white/5 rounded-full" />
+
+        <div className="relative z-10">
+          <div className="flex items-start justify-between gap-4">
+            <div className="flex-1">
+              <p className="text-indigo-200 text-sm font-medium mb-1">{greeting()}</p>
+              <h1 className="text-2xl sm:text-3xl font-bold tracking-tight mb-2">
+                {user?.name?.split(' ')[0]}, let's create!
+              </h1>
+              <p className="text-indigo-100/80 text-sm max-w-md leading-relaxed">
+                Manage your courses, build chapters, and craft placement tests from your instructor hub.
+              </p>
+              <div className="flex items-center gap-3 mt-5">
+                <Link to="/instructor/chapters" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white text-indigo-700 font-semibold text-sm rounded-xl hover:bg-indigo-50 transition-all duration-200 shadow-lg shadow-indigo-900/20">
+                  New Chapter
+                  <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+                </Link>
+                <Link to="/instructor/test-questions" className="inline-flex items-center gap-2 px-5 py-2.5 bg-white/15 backdrop-blur-sm text-white font-semibold text-sm rounded-xl hover:bg-white/25 transition-all duration-200 ring-1 ring-white/20">
+                  Add Questions
+                </Link>
+              </div>
+            </div>
+
+            {/* Language badges on desktop */}
+            <div className="hidden lg:flex flex-col items-end gap-2">
+              {languages.slice(0, 3).map(lang => (
+                <span key={lang.id} className="inline-flex items-center gap-2 px-3.5 py-2 bg-white/10 backdrop-blur-sm text-white rounded-xl text-xs font-semibold border border-white/10 hover:bg-white/15 transition-colors duration-200">
+                  {lang.image_url && <img src={lang.image_url} alt="" className="w-4 h-4 rounded-sm object-cover" />}
+                  {lang.name}
+                </span>
+              ))}
+              {languages.length > 3 && (
+                <span className="text-[11px] text-indigo-200 font-medium">+{languages.length - 3} more</span>
+              )}
+            </div>
           </div>
         </div>
       </div>
 
-      {/* Stats */}
+      {/* ── Stats Cards ── */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Languages', value: languages.length, icon: '🌐', sub: 'assigned' },
-          { label: 'Chapters', value: chapters.length, icon: '📄', sub: `${publishedCount} published` },
-          { label: 'Test Questions', value: questions.length, icon: '❓', sub: `${categories.length} categories` },
-          { label: 'Draft Chapters', value: draftCount, icon: '📝', sub: 'unpublished' },
+          {
+            label: 'Languages',
+            value: languages.length,
+            sub: 'assigned',
+            gradient: 'from-blue-500 to-indigo-500',
+            light: 'from-blue-50 to-indigo-50',
+            text: 'text-blue-700',
+            icon: (
+              <svg className="w-5 h-5 text-blue-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 21a9.004 9.004 0 008.716-6.747M12 21a9.004 9.004 0 01-8.716-6.747M12 21c2.485 0 4.5-4.03 4.5-9S14.485 3 12 3m0 18c-2.485 0-4.5-4.03-4.5-9S9.515 3 12 3m0 0a8.997 8.997 0 017.843 4.582M12 3a8.997 8.997 0 00-7.843 4.582m15.686 0A11.953 11.953 0 0112 10.5c-2.998 0-5.74-1.1-7.843-2.918m15.686 0A8.959 8.959 0 0121 12c0 .778-.099 1.533-.284 2.253m0 0A17.919 17.919 0 0112 16.5c-3.162 0-6.133-.815-8.716-2.247m0 0A9.015 9.015 0 013 12c0-1.605.42-3.113 1.157-4.418" />
+              </svg>
+            ),
+          },
+          {
+            label: 'Chapters',
+            value: chapters.length,
+            sub: `${publishedCount} published`,
+            gradient: 'from-emerald-500 to-teal-500',
+            light: 'from-emerald-50 to-teal-50',
+            text: 'text-emerald-700',
+            icon: (
+              <svg className="w-5 h-5 text-emerald-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
+              </svg>
+            ),
+          },
+          {
+            label: 'Test Questions',
+            value: questions.length,
+            sub: `${categories.length} categories`,
+            gradient: 'from-amber-500 to-orange-500',
+            light: 'from-amber-50 to-orange-50',
+            text: 'text-amber-700',
+            icon: (
+              <svg className="w-5 h-5 text-amber-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9.879 7.519c1.171-1.025 3.071-1.025 4.242 0 1.172 1.025 1.172 2.687 0 3.712-.203.179-.43.326-.67.442-.745.361-1.45.999-1.45 1.827v.75M21 12a9 9 0 11-18 0 9 9 0 0118 0zm-9 5.25h.008v.008H12v-.008z" />
+              </svg>
+            ),
+          },
+          {
+            label: 'Drafts',
+            value: draftCount,
+            sub: 'unpublished',
+            gradient: 'from-rose-500 to-pink-500',
+            light: 'from-rose-50 to-pink-50',
+            text: 'text-rose-700',
+            icon: (
+              <svg className="w-5 h-5 text-rose-600" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125M18 14v4.75A2.25 2.25 0 0115.75 21H5.25A2.25 2.25 0 013 18.75V8.25A2.25 2.25 0 015.25 6H10" />
+              </svg>
+            ),
+          },
         ].map((stat) => (
-          <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-5 shadow-sm hover:shadow-md transition-shadow duration-200 group">
+          <div key={stat.label} className="bg-white rounded-2xl border border-gray-100 p-5 hover:shadow-lg hover:-translate-y-1 transition-all duration-300 group cursor-default">
             <div className="flex items-center justify-between mb-3">
-              <span className="text-2xl">{stat.icon}</span>
-              <span className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">{stat.sub}</span>
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${stat.light} flex items-center justify-center transition-transform duration-300 group-hover:scale-110`}>
+                {stat.icon}
+              </div>
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">{stat.sub}</span>
             </div>
-            <p className="text-2xl font-bold text-gray-900 tracking-tight">{stat.value}</p>
-            <p className="text-sm text-gray-500 mt-0.5">{stat.label}</p>
+            <p className={`text-2xl font-bold ${stat.text} tracking-tight`}>{stat.value}</p>
+            <p className="text-[13px] text-gray-500 mt-0.5 font-medium">{stat.label}</p>
           </div>
         ))}
       </div>
 
+      {/* ── Content Overview + Quick Actions Grid ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-5">
-        {/* Test Question Distribution */}
+        {/* Question Distribution — bar chart style */}
         <div className="lg:col-span-2 bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
-          <div className="flex items-center justify-between mb-5">
+          <div className="flex items-center justify-between mb-6">
             <div>
               <h3 className="text-base font-bold text-gray-800">Question Distribution</h3>
               <p className="text-xs text-gray-400 mt-0.5">{questions.length} total across {categories.length} categories</p>
             </div>
-            <Link to="/instructor/test-questions" className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
-              View all →
+            <Link to="/instructor/test-questions" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+              View all
+              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
             </Link>
           </div>
-          <div className="space-y-3">
+          <div className="space-y-3.5">
             {[
-              { cat: 'vocabulary', label: 'Vocabulary', icon: '📝' },
-              { cat: 'grammar', label: 'Grammar', icon: '📐' },
-              { cat: 'reading', label: 'Reading', icon: '📖' },
-              { cat: 'listening', label: 'Listening', icon: '🎧' },
-              { cat: 'writing', label: 'Writing', icon: '✍️' },
-            ].map(({ cat, label, icon }) => {
+              { cat: 'vocabulary', label: 'Vocabulary', gradient: 'from-blue-500 to-indigo-500', bg: 'bg-blue-50', iconColor: 'text-blue-600',
+                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 6.042A8.967 8.967 0 006 3.75c-1.052 0-2.062.18-3 .512v14.25A8.987 8.987 0 016 18c2.305 0 4.408.867 6 2.292m0-14.25a8.966 8.966 0 016-2.292c1.052 0 2.062.18 3 .512v14.25A8.987 8.987 0 0018 18a8.967 8.967 0 00-6 2.292m0-14.25v14.25" /></svg> },
+              { cat: 'grammar', label: 'Grammar', gradient: 'from-violet-500 to-purple-500', bg: 'bg-violet-50', iconColor: 'text-violet-600',
+                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.436 60.436 0 00-.491 6.347A48.627 48.627 0 0112 20.904a48.627 48.627 0 018.232-4.41 60.46 60.46 0 00-.491-6.347m-15.482 0a50.57 50.57 0 00-2.658-.813A59.905 59.905 0 0112 3.493a59.902 59.902 0 0110.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.697 50.697 0 0112 13.489a50.702 50.702 0 017.74-3.342" /></svg> },
+              { cat: 'reading', label: 'Reading', gradient: 'from-emerald-500 to-teal-500', bg: 'bg-emerald-50', iconColor: 'text-emerald-600',
+                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg> },
+              { cat: 'listening', label: 'Listening', gradient: 'from-amber-500 to-orange-500', bg: 'bg-amber-50', iconColor: 'text-amber-600',
+                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.114 5.636a9 9 0 010 12.728M16.463 8.288a5.25 5.25 0 010 7.424M6.75 8.25l4.72-4.72a.75.75 0 011.28.53v15.88a.75.75 0 01-1.28.53l-4.72-4.72H4.51c-.88 0-1.704-.507-1.938-1.354A9.01 9.01 0 012.25 12c0-.83.112-1.633.322-2.396C2.806 8.756 3.63 8.25 4.51 8.25H6.75z" /></svg> },
+              { cat: 'writing', label: 'Writing', gradient: 'from-rose-500 to-pink-500', bg: 'bg-rose-50', iconColor: 'text-rose-600',
+                icon: <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M16.862 4.487l1.687-1.688a1.875 1.875 0 112.652 2.652L10.582 16.07a4.5 4.5 0 01-1.897 1.13L6 18l.8-2.685a4.5 4.5 0 011.13-1.897l8.932-8.931zm0 0L19.5 7.125" /></svg> },
+            ].map(({ cat, label, gradient, bg, icon, iconColor }) => {
               const count = catCounts.find(c => c.cat === cat)?.count || 0;
               const max = Math.max(...catCounts.map(c => c.count), 1);
               const pct = (count / max) * 100;
               return (
-                <div key={cat} className="flex items-center gap-3">
-                  <span className="text-sm w-5 text-center">{icon}</span>
-                  <span className="text-sm font-medium text-gray-700 w-20">{label}</span>
-                  <div className="flex-1 h-7 bg-gray-50 rounded-lg overflow-hidden relative">
+                <div key={cat} className="group flex items-center gap-3">
+                  <div className={`w-8 h-8 rounded-lg ${bg} flex items-center justify-center shrink-0 ${iconColor} transition-transform duration-200 group-hover:scale-110`}>
+                    {icon}
+                  </div>
+                  <span className="text-sm font-semibold text-gray-700 w-20">{label}</span>
+                  <div className="flex-1 h-8 bg-gray-50 rounded-xl overflow-hidden relative">
                     <div
-                      className="h-full bg-violet-100 rounded-lg transition-all duration-500"
-                      style={{ width: `${Math.max(pct, 2)}%` }}
+                      className={`h-full bg-gradient-to-r ${gradient} rounded-xl transition-all duration-700 ease-out`}
+                      style={{ width: `${Math.max(pct, 3)}%` }}
                     />
                     <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs font-bold text-gray-500">{count}</span>
                   </div>
@@ -456,30 +540,54 @@ function InstructorDashboard({ user }) {
           </div>
         </div>
 
-        {/* Quick Actions */}
-        <div className="space-y-4">
+        {/* Quick Actions — polished card stack */}
+        <div className="flex flex-col gap-4">
           <h3 className="text-base font-bold text-gray-800">Quick Actions</h3>
           {[
-            { label: 'Add Chapter', desc: 'Create new course content', to: '/instructor/chapters', icon: (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
-            ) },
-            { label: 'Add Test Question', desc: 'Build placement tests', to: '/instructor/test-questions', icon: (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
-            ) },
-            { label: 'My Profile', desc: 'Update your info', to: '/profile', icon: (
-              <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
-            ) },
+            {
+              label: 'Add Chapter',
+              desc: 'Create new course content',
+              to: '/instructor/chapters',
+              gradient: 'from-blue-500 to-indigo-600',
+              light: 'from-blue-50 to-indigo-50',
+              iconColor: 'text-blue-600',
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m3.75 9v6m3-3H9m1.5-12H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" /></svg>
+              ),
+            },
+            {
+              label: 'Add Test Question',
+              desc: 'Build placement tests',
+              to: '/instructor/test-questions',
+              gradient: 'from-violet-500 to-purple-600',
+              light: 'from-violet-50 to-purple-50',
+              iconColor: 'text-violet-600',
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+              ),
+            },
+            {
+              label: 'My Profile',
+              desc: 'Update your info',
+              to: '/profile',
+              gradient: 'from-emerald-500 to-teal-600',
+              light: 'from-emerald-50 to-teal-50',
+              iconColor: 'text-emerald-600',
+              icon: (
+                <svg className="w-5 h-5" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 6a3.75 3.75 0 11-7.5 0 3.75 3.75 0 017.5 0zM4.501 20.118a7.5 7.5 0 0114.998 0A17.933 17.933 0 0112 21.75c-2.676 0-5.216-.584-7.499-1.632z" /></svg>
+              ),
+            },
           ].map((action) => (
             <Link key={action.label} to={action.to}
-              className="flex items-center gap-4 bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-md hover:border-violet-100 transition-all duration-200 group">
-              <div className="w-10 h-10 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0 group-hover:bg-violet-100 transition-colors">
+              className="group flex items-center gap-4 bg-white rounded-2xl border border-gray-100 p-4 shadow-sm hover:shadow-lg hover:-translate-y-0.5 hover:border-indigo-100 transition-all duration-300">
+              <div className={`w-11 h-11 rounded-xl bg-gradient-to-br ${action.light} ${action.iconColor} flex items-center justify-center shrink-0 transition-transform duration-300 group-hover:scale-110`}>
                 {action.icon}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-sm font-semibold text-gray-800 group-hover:text-violet-700 transition-colors">{action.label}</p>
-                <p className="text-xs text-gray-400">{action.desc}</p>
+                <p className="text-sm font-semibold text-gray-800 group-hover:text-indigo-700 transition-colors duration-200">{action.label}</p>
+                <p className="text-xs text-gray-400 mt-0.5">{action.desc}</p>
               </div>
-              <svg className="w-4 h-4 text-gray-300 group-hover:text-violet-400 transition-colors shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+              <svg className="w-4 h-4 text-gray-300 group-hover:text-indigo-400 transition-colors duration-200 shrink-0" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M8.25 4.5l7.5 7.5-7.5 7.5" />
               </svg>
             </Link>
@@ -487,56 +595,57 @@ function InstructorDashboard({ user }) {
         </div>
       </div>
 
-      {/* Recent Chapters */}
+      {/* ── Recent Chapters ── */}
       <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        <div className="p-6 border-b border-gray-50 flex items-center justify-between">
+        <div className="p-6 border-b border-gray-100/80 flex items-center justify-between">
           <div>
             <h3 className="text-base font-bold text-gray-800">Recent Chapters</h3>
             <p className="text-xs text-gray-400 mt-0.5">Your latest content</p>
           </div>
-          <Link to="/instructor/chapters" className="text-xs font-semibold text-violet-600 hover:text-violet-700 transition-colors">
-            View all →
+          <Link to="/instructor/chapters" className="inline-flex items-center gap-1 text-xs font-semibold text-indigo-600 hover:text-indigo-700 transition-colors">
+            View all
+            <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M13.5 4.5L21 12m0 0l-7.5 7.5M21 12H3" /></svg>
           </Link>
         </div>
         {chapters.length === 0 ? (
-          <div className="text-center py-14">
-            <div className="w-14 h-14 bg-gray-50 rounded-2xl flex items-center justify-center mx-auto mb-3">
-              <svg className="w-7 h-7 text-gray-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
+          <div className="text-center py-16">
+            <div className="w-16 h-16 bg-gradient-to-br from-indigo-50 to-blue-50 rounded-2xl flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-indigo-300" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 00-3.375-3.375h-1.5A1.125 1.125 0 0113.5 7.125v-1.5a3.375 3.375 0 00-3.375-3.375H8.25m2.25 0H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 00-9-9z" />
               </svg>
             </div>
-            <p className="text-sm font-semibold text-gray-600">No chapters yet</p>
-            <p className="text-xs text-gray-400 mt-1">Start by creating your first chapter</p>
-            <Link to="/instructor/chapters" className="inline-flex items-center gap-1.5 mt-4 px-4 py-2 bg-violet-600 text-white text-xs font-semibold rounded-lg hover:bg-violet-700 transition-colors">
-              <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
+            <p className="text-sm font-bold text-gray-700">No chapters yet</p>
+            <p className="text-xs text-gray-400 mt-1.5 max-w-xs mx-auto">Start building your course by creating your first chapter.</p>
+            <Link to="/instructor/chapters" className="inline-flex items-center gap-2 mt-5 px-5 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white text-sm font-semibold rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 shadow-md shadow-indigo-500/20">
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" /></svg>
               Create Chapter
             </Link>
           </div>
         ) : (
           <div className="divide-y divide-gray-50">
-            {chapters.slice(0, 5).map((ch) => (
-              <div key={ch.id} className="px-6 py-4 flex items-center gap-4 hover:bg-gray-50/50 transition-colors">
-                <div className="w-9 h-9 rounded-lg bg-gray-50 flex items-center justify-center text-sm font-bold text-gray-400 shrink-0">
-                  {ch.order || '#'}
+            {chapters.slice(0, 5).map((ch, idx) => (
+              <div key={ch.id} className="px-6 py-4 flex items-center gap-4 hover:bg-gradient-to-r hover:from-indigo-50/30 hover:to-transparent transition-all duration-200 group">
+                <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-indigo-50 to-blue-50 flex items-center justify-center text-sm font-bold text-indigo-500 shrink-0 ring-1 ring-indigo-100/50 group-hover:scale-105 transition-transform duration-200">
+                  {ch.order || idx + 1}
                 </div>
                 <div className="flex-1 min-w-0">
-                  <p className="text-sm font-semibold text-gray-800 truncate">{ch.title}</p>
+                  <p className="text-sm font-semibold text-gray-800 truncate group-hover:text-indigo-700 transition-colors duration-200">{ch.title}</p>
                   <div className="flex items-center gap-2 mt-0.5">
-                    <span className="text-xs text-gray-400">{ch.language?.name}</span>
+                    <span className="text-xs text-gray-400 font-medium">{ch.language?.name}</span>
                     {ch.level && (
                       <>
-                        <span className="text-gray-200">·</span>
-                        <span className="text-xs text-gray-400">{ch.level.name}</span>
+                        <span className="w-1 h-1 rounded-full bg-gray-300" />
+                        <span className="text-xs text-gray-400 font-medium">{ch.level.name}</span>
                       </>
                     )}
                   </div>
                 </div>
-                <span className={`inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-semibold ${
+                <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-[11px] font-bold ${
                   ch.is_published
-                    ? 'bg-emerald-50 text-emerald-600'
-                    : 'bg-gray-100 text-gray-500'
+                    ? 'bg-emerald-50 text-emerald-600 ring-1 ring-emerald-100'
+                    : 'bg-amber-50 text-amber-600 ring-1 ring-amber-100'
                 }`}>
-                  <span className={`w-1.5 h-1.5 rounded-full ${ch.is_published ? 'bg-emerald-500' : 'bg-gray-400'}`} />
+                  <span className={`w-1.5 h-1.5 rounded-full ${ch.is_published ? 'bg-emerald-500' : 'bg-amber-500'}`} />
                   {ch.is_published ? 'Published' : 'Draft'}
                 </span>
               </div>

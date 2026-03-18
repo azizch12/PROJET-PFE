@@ -8,6 +8,10 @@ export const forgotPassword  = (data) => client.post('/forgot-password', data);
 export const resetPassword   = (data) => client.post('/reset-password', data);
 export const socialLogin     = (data) => client.post('/social-login', data);
 
+// Email verification (OTP)
+export const sendVerificationCode = () => client.post('/email/send-code');
+export const verifyEmailCode      = (data) => client.post('/email/verify-code', data);
+
 export const updateProfile   = (data) => client.put('/profile', data);
 export const updatePassword  = (data) => client.put('/profile/password', data);
 export const uploadAvatar    = (file) => {
@@ -142,3 +146,7 @@ export const retakeLearnerTest      = (data)   => client.post('/learner/test/ret
 
 export const getLearnerDashboard    = ()       => client.get('/learner/dashboard');
 export const getLearnerProgress     = (params) => client.get('/learner/progress', { params });
+
+// Learner – AI-generated exercises
+export const generateExercises = (languageId) =>
+    client.get(`/learner/exercises?language_id=${languageId}`).then(r => r.data);
