@@ -10,26 +10,25 @@ RUN apk add --no-cache \
     oniguruma-dev \
     freetype-dev \
     libjpeg-turbo-dev \
-    exif-dev \
     bash \
     curl \
     unzip
 
 # Install PHP extensions
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install \
+RUN docker-php-ext-install \
     pdo \
-    pdo_pgsql \
     pgsql \
+    pdo_pgsql \
     mbstring \
     xml \
     ctype \
     fileinfo \
     tokenizer \
     bcmath \
-    gd \
-    zip \
-    exif
+    zip
+
+RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
+ && docker-php-ext-install gd exif
 
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
