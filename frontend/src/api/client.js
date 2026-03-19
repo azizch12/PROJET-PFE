@@ -1,11 +1,14 @@
 import axios from 'axios';
 
 const client = axios.create({
-  baseURL: '/api',
+  baseURL: import.meta.env.VITE_API_URL
+    ? import.meta.env.VITE_API_URL + '/api'
+    : '/api',
   headers: {
     'Content-Type': 'application/json',
     'Accept': 'application/json',
   },
+  withCredentials: false,
 });
 
 // Before each request: attach the token from localStorage
