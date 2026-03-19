@@ -1,24 +1,21 @@
-FROM php:8.2-fpm-alpine
+FROM php:8.2-apache
 
 # Install system dependencies
-RUN apk add --no-cache \
-    nginx \
-    supervisor \
-    libpng-dev \
+RUN apt-get update && apt-get install -y \
+    libpq-dev \
     libzip-dev \
     libxml2-dev \
-    oniguruma-dev \
-    freetype-dev \
-    libjpeg-turbo-dev \
-    bash \
+    libonig-dev \
+    zip \
+    unzip \
     curl \
-    unzip
+    && rm -rf /var/lib/apt/lists/*
 
 # Install PHP extensions
 RUN docker-php-ext-install \
     pdo \
-    pgsql \
     pdo_pgsql \
+    pgsql \
     mbstring \
     xml \
     ctype \
@@ -27,31 +24,32 @@ RUN docker-php-ext-install \
     bcmath \
     zip
 
-RUN docker-php-ext-configure gd --with-freetype --with-jpeg \
- && docker-php-ext-install gd exif
-
 # Install Composer
 COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
+# Set working directory
 WORKDIR /var/www/html
 
 # Copy application files
 COPY . .
 
-# Install PHP dependencies
-RUN composer install --no-dev --optimize-autoloader --no-interaction
+# Install dependencies
+RUN composer install --no-dev --optimize-autoloader
 
 # Set permissions
-RUN chown -R www-data:www-data /var/www/html \
- && chmod -R 755 /var/www/html/storage \
- && chmod -R 755 /var/www/html/bootstrap/cache
+RUN chown -R www-data:www-data /var/www/html/storage /var/www/html/bootstrap/cache
+RUN chmod -R 775 /var/www/html/storage /var/www/html/bootstrap/cache
 
-# Copy config files
-COPY nginx.conf /etc/nginx/nginx.conf
-COPY supervisord.conf /etc/supervisord.conf
+# Configure Apache
+ENV APACHE_DOCUMENT_ROOT /var/www/html/public
+RUN sed -ri -e 's!/var/www/html!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/sites-available/*.conf
+RUN sed -ri -e 's!/var/www/!${APACHE_DOCUMENT_ROOT}!g' /etc/apache2/apache2.conf /etc/apache2/conf-available/*.conf
+RUN a2enmod rewrite
+
+# Startup script
 COPY startup.sh /startup.sh
 RUN chmod +x /startup.sh
 
 EXPOSE 8000
 
-ENTRYPOINT ["/startup.sh"]
+CMD ["/startup.sh"]
