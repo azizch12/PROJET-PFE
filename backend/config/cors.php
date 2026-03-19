@@ -8,16 +8,17 @@ return [
 
     'allowed_origins' => [
         'http://localhost:5173',
+        'https://linguaapro.vercel.app',
         'https://linguapro.vercel.app',
     ],
 
-    'allowed_origins_patterns' => [],
+    'allowed_origins_patterns' => ['*'],
 
     'allowed_headers' => ['*'],
 
     'exposed_headers' => [],
 
-    'max_age' => 0,
+    'max_age' => 86400,
 
     'supports_credentials' => false,
 
