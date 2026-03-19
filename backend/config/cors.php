@@ -6,13 +6,9 @@ return [
 
     'allowed_methods' => ['*'],
 
-    'allowed_origins' => [
-        'http://localhost:5173',
-        'https://linguaapro.vercel.app',
-        'https://linguapro.vercel.app',
-    ],
+    'allowed_origins' => ['*'],
 
-    'allowed_origins_patterns' => ['*'],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
