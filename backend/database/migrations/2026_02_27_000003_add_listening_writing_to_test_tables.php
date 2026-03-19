@@ -9,22 +9,27 @@ return new class extends Migration
 {
     public function up(): void
     {
-        // 1. Expand category enum to include 'listening'
-        //    and make MCQ columns nullable (writing questions don't need them)
+        // 1. Add new columns
         Schema::table('test_questions', function (Blueprint $table) {
             $table->string('audio_path')->nullable()->after('passage')->comment('Audio file for listening questions');
             $table->string('correct_text')->nullable()->after('correct_option')->comment('Correct typed answer for writing questions');
         });
 
-        // Change category enum to include 'listening'
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN category ENUM('vocabulary','grammar','reading','listening','writing') NOT NULL");
+        // Expand category to include 'listening'
+        DB::statement('ALTER TABLE test_questions DROP CONSTRAINT IF EXISTS test_questions_category_check');
+        DB::statement("ALTER TABLE test_questions ALTER COLUMN category TYPE VARCHAR(255)");
+        DB::statement("ALTER TABLE test_questions ADD CONSTRAINT test_questions_category_check CHECK (category IN ('vocabulary','grammar','reading','listening','writing'))");
 
-        // Make MCQ columns nullable (writing questions won't have them)
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_a VARCHAR(255) NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_b VARCHAR(255) NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_c VARCHAR(255) NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_d VARCHAR(255) NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN correct_option ENUM('a','b','c','d') NULL");
+        // Make MCQ option columns nullable
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_a DROP NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_b DROP NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_c DROP NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_d DROP NOT NULL');
+
+        // Make correct_option nullable and update its check constraint
+        DB::statement('ALTER TABLE test_questions DROP CONSTRAINT IF EXISTS test_questions_correct_option_check');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN correct_option DROP NOT NULL');
+        DB::statement("ALTER TABLE test_questions ADD CONSTRAINT test_questions_correct_option_check CHECK (correct_option IN ('a','b','c','d') OR correct_option IS NULL)");
 
         // 2. Add listening_score to test_results
         Schema::table('test_results', function (Blueprint $table) {
@@ -38,12 +43,20 @@ return new class extends Migration
             $table->dropColumn(['audio_path', 'correct_text']);
         });
 
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN category ENUM('vocabulary','grammar','reading','writing') NOT NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_a VARCHAR(255) NOT NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_b VARCHAR(255) NOT NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_c VARCHAR(255) NOT NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN option_d VARCHAR(255) NOT NULL");
-        DB::statement("ALTER TABLE test_questions MODIFY COLUMN correct_option ENUM('a','b','c','d') NOT NULL");
+        // Revert category to original values
+        DB::statement('ALTER TABLE test_questions DROP CONSTRAINT IF EXISTS test_questions_category_check');
+        DB::statement("ALTER TABLE test_questions ADD CONSTRAINT test_questions_category_check CHECK (category IN ('vocabulary','grammar','reading','writing'))");
+
+        // Restore MCQ option columns to NOT NULL
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_a SET NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_b SET NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_c SET NOT NULL');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN option_d SET NOT NULL');
+
+        // Restore correct_option to NOT NULL with original check constraint
+        DB::statement('ALTER TABLE test_questions DROP CONSTRAINT IF EXISTS test_questions_correct_option_check');
+        DB::statement('ALTER TABLE test_questions ALTER COLUMN correct_option SET NOT NULL');
+        DB::statement("ALTER TABLE test_questions ADD CONSTRAINT test_questions_correct_option_check CHECK (correct_option IN ('a','b','c','d'))");
 
         Schema::table('test_results', function (Blueprint $table) {
             $table->dropColumn('listening_score');

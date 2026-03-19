@@ -94,8 +94,8 @@ return [
             'charset' => env('DB_CHARSET', 'utf8'),
             'prefix' => '',
             'prefix_indexes' => true,
-            'search_path' => 'public',
-            'sslmode' => env('DB_SSLMODE', 'prefer'),
+            'search_path' => 'laravel',
+            'sslmode' => 'require',
         ],
 
         'sqlsrv' => [
